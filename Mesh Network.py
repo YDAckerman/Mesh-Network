@@ -11,10 +11,10 @@ from pygame.locals import *
 
 #EDIT THESE VALUES
 settings = {
-    'signalSpeed':4, #Each signal will propagate at the rate of 1 pixel per n frames. Lower = faster
+    'signalSpeed':5, #Each signal will propagate at the rate of 1 pixel per n frames. Lower = faster
     'signalTTL':15, #Max number of times a signal will be relayed
-    'signalStrength':200, #Pixel radius a signal can reach before it decays
-    'startingNodeCount':50, #Number of nodes in the network (will be randomly distributed in space)
+    'signalStrength':350, #Pixel radius a signal can reach before it decays
+    'startingNodeCount':30, #Number of nodes in the network (will be randomly distributed in space)
     'nodeSize':20, #Pixel height and width of the squares representing each node
     'colorPalette': [(90, 125, 124),(243, 222, 138),(235,148,134),(127, 176, 105),(74,111,165)], #Colors to pick from
     'screenWidth':1200, #Pygame window width
@@ -54,7 +54,20 @@ class Network:
             for event in pygame.event.get():
                 if event.type == QUIT:
                     self.running = False
-            if self.signalList == []:
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    mouseX = pygame.mouse.get_pos()[0]
+                    mouseY = pygame.mouse.get_pos()[1]
+                    if event.button == 1:
+                        node = Node(myNetwork,myNetwork.generateID('Node'),['colorchange'])
+                        node.setDimensions(mouseX, mouseY,self.nodeSize,self.nodeSize)
+                        node.setColor((255,255,255))
+                        self.addNode(node)
+                    elif event.button == 3:
+                        mouseRect = pygame.Rect(mouseX,mouseY, self.nodeSize, self.nodeSize)
+                        for node in self.nodeList:
+                            if pygame.Rect.colliderect(node.rect, mouseRect):
+                                node.kill()
+            if self.signalList == [] and self.nodeList != []:
                 newColor = random.choice(self.colorPalette)
                 newSignal = random.choice(self.nodeList).createSignal(['colorchange'], newColor, color=newColor)
                 self.signalList.append(newSignal)
@@ -67,6 +80,7 @@ class Network:
                 
             self.cleanUp()
             pygame.display.update()
+            
         pygame.quit()
                 
     def addNode(self,node):
@@ -81,6 +95,7 @@ class Network:
     
     def cleanUp(self):
         self.signalList = [signal for signal in self.signalList if signal.alive]
+        self.nodeList = [node for node in self.nodeList if node.alive]
         
     def randomColor(self):
         return (random.randint(0,255),random.randint(0,255),random.randint(0,255))
@@ -99,6 +114,7 @@ class Node:
         self.height = 0
         self.color = (0,0,0)
         self.rect = pygame.Rect(self.x,self.y,self.width,self.height)
+        self.alive = True
         
     def receiveSignal(self,signal):
         subscribes = False
@@ -153,6 +169,9 @@ class Node:
         self.rect = pygame.Rect(self.x,self.y,self.width,self.height)
         pygame.draw.rect(screen, self.color, self.rect)
         
+    def kill(self):
+        self.alive = False
+        
         
 #Signal class that propagates at speed and alerts nodes when it touches them        
 class Signal:
@@ -192,7 +211,7 @@ class Signal:
                 if pygame.Rect.colliderect(self.rect, node.rect):
                     node.receiveSignal(self)
             if self.radius >= self.strength or self.TTL <= 0:
-                self.alive = False
+                self.kill()
                 
         
     def decrementTTL(self):
@@ -201,9 +220,9 @@ class Signal:
     def draw(self,screen):
         pygame.draw.circle(screen, self.color, (self.x,self.y), self.radius,min(self.radius,1))
         
-
-
-
+    def kill(self):
+        self.alive = False
+        
 
 myNetwork = Network(settings)
 myNetwork.run()
